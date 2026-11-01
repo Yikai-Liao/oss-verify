@@ -1,0 +1,98 @@
+curl-fuzz_url_reparse.0001-url-reparse-check.patch
+Harness reporting.
+
+Read-back check (f) in fuzz_url.cc of curl-fuzzer de8de303d3e0d54e5ce235fd95d562154970ebf9 (sha256
+90791755a9c19a70...), for the fuzz target fuzz_url_reparse. (f) is a hypothesis that curl's manual does not promise:
+after the harness's curl_url_set(), the URL read back with curl_url_get() parses again, with the harness's flag, into
+a handle of its own, and that handle reads back the same string. The check is an assert that aborts. The harness gives
+curl the same calls, with the same arguments, in the same order: the patch adds a read of the harness's handle and
+parses into a handle of its own only. Premise: no allocation fails, as the driver ignores the input's allocation mask.
+
+diff --git a/fuzz_url.cc b/fuzz_url.cc
+index 0f1be3ba211d92ee3ddb87808b02e7e4de6a1fd9..046d720f0be2370eb3036a15038d26c92f42aa61 100644
+--- a/fuzz_url.cc
++++ b/fuzz_url.cc
+@@ -25,6 +25,67 @@
+ #include <string.h>
+ #include <curl/curl.h>
+ 
++/* The read-back check below is an assert(). It must abort when it fails, in
++ * every build, so NDEBUG never turns it off here. */
++#undef NDEBUG
++#include <assert.h>
++
++/*
++ * Read-back check (f), a hypothesis that curl's manual (docs/libcurl/
++ * curl_url_get.md and curl_url_set.md) does not promise. After the
++ * harness's curl_url_set(), it reads the URL back with curl_url_get() and
++ * parses it again. The checks that the manual promises, (a) to (e), are the
++ * fuzz target fuzz_url_contract.
++ *
++ * The check only reads the harness's handle. The harness gives curl the same
++ * calls, with the same arguments, in the same order as before. The check adds
++ * a call of curl_url_get(), which takes a const handle, and parses into a
++ * handle of its own, never into the harness's.
++ *
++ * The harness parses with the flag CURLU_GUESS_SCHEME and no other flag.
++ *
++ * Premise: no allocation fails. The driver of these builds fails none: it
++ * ignores the input's allocation mask (ossfuzz_adapter.h). A read that failed
++ * for want of memory would abort (f). A check that fails aborts, and its text
++ * starts with the letter of the check. The check takes the values it judges,
++ * so a test can give it a value that breaks it. */
++
++/* (f) A hypothesis that curl's manual does not promise: the URL that reads
++ * back parses again, with the harness's flag CURLU_GUESS_SCHEME, into a
++ * handle of its own, and that handle reads back (flags 0) the same string.
++ * A failure here is a fact about curl, not a fault of the check. */
++static void check_f_reparse(CURLUcode set_rc, CURLUcode get_rc,
++                            const char *first, const char *second)
++{
++  assert(set_rc == CURLUE_OK && "(f) the URL read back parses again");
++  if(set_rc == CURLUE_OK)
++    assert(get_rc == CURLUE_OK && "(f) the URL parsed again reads back");
++  if(set_rc == CURLUE_OK && get_rc == CURLUE_OK)
++    assert(!strcmp(first, second) && "(f) it reads back the same string");
++}
++
++/* Check (f), after a successful set of the handle uh. A URL that does not
++ * read back is not judged here. */
++static void check_after_set(const CURLU *uh)
++{
++  char *url = NULL;
++  curl_url_get(uh, CURLUPART_URL, &url, 0);
++
++  if(url) {
++    CURLU *again = curl_url();
++    char *url_again = NULL;
++    CURLUcode set_rc = curl_url_set(again, CURLUPART_URL, url,
++                                    CURLU_GUESS_SCHEME);
++    CURLUcode get_rc = CURLUE_OK;
++    if(set_rc == CURLUE_OK)
++      get_rc = curl_url_get(again, CURLUPART_URL, &url_again, 0);
++    check_f_reparse(set_rc, get_rc, url, url_again);
++    curl_free(url_again);
++    curl_url_cleanup(again);
++  }
++  curl_free(url);
++}
++
+ /**
+  * Fuzzing entry point. This function is passed a buffer containing a test
+  * case.  This test case should drive the CURL URL API.
+@@ -40,11 +101,14 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
+   if(size) {
+     newp = (char *)malloc(size + 1);
+     if(newp) {
++      CURLUcode rc;
+       memcpy(newp, data, size);
+       /* make sure it is zero terminated */
+       newp[size] = 0;
+-      curl_url_set(uh, CURLUPART_URL, newp, CURLU_GUESS_SCHEME);
++      rc = curl_url_set(uh, CURLUPART_URL, newp, CURLU_GUESS_SCHEME);
+       free(newp);
++      if(rc == CURLUE_OK)
++        check_after_set(uh);
+     }
+   }
+   curl_url_cleanup(uh);

@@ -164,3 +164,39 @@ build_lib() {
 }
 ov_target_build fuzz_netrc
 )
+
+# fuzz_url_contract: curl-fuzzer de8de303d3e0's fuzz_url harness with the read-back checks (a) to (e) of what curl's
+# manual promises (curl-fuzz_url_contract.0001-url-contract-checks.patch), on curl-fuzz_fnmatch's pin
+(
+ov_target_begin curl-fuzz_url_contract
+LIB_ARCHIVE="lib/liboft.a"
+LIB_CFLAGS=""
+build_lib() {
+  oft_require_target_cxx
+  oft_build_cmake -DCURL_USE_LIBPSL=OFF -DCURL_USE_OPENSSL=OFF -DCURL_USE_GNUTLS=OFF -DCURL_USE_MBEDTLS=OFF
+  OFT_HARNESS_CFLAGS="-DHAVE_CONFIG_H -I$BUILDDIR/cmk/lib -I$SRCDIR/lib -I$SRCDIR/include -I/work/targets/curl-fuzz_url_contract"
+  oft_build_harness "fuzz_url.cc"
+  oft_seal_getenv
+  oft_seal_mkstemp
+  oft_seal_getpid
+}
+ov_target_build fuzz_url_contract
+)
+
+# fuzz_url_reparse: curl-fuzzer de8de303d3e0's fuzz_url harness with the read-back check (f), a hypothesis that curl's
+# manual does not promise (curl-fuzz_url_reparse.0001-url-reparse-check.patch), on curl-fuzz_fnmatch's pin
+(
+ov_target_begin curl-fuzz_url_reparse
+LIB_ARCHIVE="lib/liboft.a"
+LIB_CFLAGS=""
+build_lib() {
+  oft_require_target_cxx
+  oft_build_cmake -DCURL_USE_LIBPSL=OFF -DCURL_USE_OPENSSL=OFF -DCURL_USE_GNUTLS=OFF -DCURL_USE_MBEDTLS=OFF
+  OFT_HARNESS_CFLAGS="-DHAVE_CONFIG_H -I$BUILDDIR/cmk/lib -I$SRCDIR/lib -I$SRCDIR/include -I/work/targets/curl-fuzz_url_reparse"
+  oft_build_harness "fuzz_url.cc"
+  oft_seal_getenv
+  oft_seal_mkstemp
+  oft_seal_getpid
+}
+ov_target_build fuzz_url_reparse
+)
