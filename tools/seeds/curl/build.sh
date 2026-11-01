@@ -105,3 +105,23 @@ build_lib() {
 }
 ov_target_build fuzz_fnmatch
 )
+
+# Not of the release: fuzz_url from curl-fuzzer de8de303d3e0, on curl-fuzz_fnmatch's pin, with the libcurl build of
+# curl-fuzz_fnmatch and the harness's include paths
+(
+ov_target_begin curl-fuzz_url
+LIB_ARCHIVE="lib/liboft.a"
+LIB_CFLAGS=""
+build_lib() {
+  oft_require_target_cxx
+  :
+  oft_build_cmake -DCURL_USE_LIBPSL=OFF
+  :
+  OFT_HARNESS_CFLAGS="-DHAVE_CONFIG_H  -I$BUILDDIR/cmk/lib -I$SRCDIR/lib -I$SRCDIR/include -I/work/targets/curl-fuzz_url"
+  oft_build_harness "fuzz_url.cc"
+  oft_seal_getenv
+  oft_seal_mkstemp
+  oft_seal_getpid
+}
+ov_target_build fuzz_url
+)
