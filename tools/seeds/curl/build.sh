@@ -105,3 +105,62 @@ build_lib() {
 }
 ov_target_build fuzz_fnmatch
 )
+
+# Not of the release: the targets below are built with TLS off (-DCURL_USE_OPENSSL=OFF -DCURL_USE_GNUTLS=OFF -DCURL_USE_MBEDTLS=OFF), so their binaries hold no TLS
+# code; fuzz_bufq and fuzz_fnmatch above keep the release's build.
+
+# fuzz_url: curl-fuzzer de8de303d3e0's harness, unchanged, on curl-fuzz_fnmatch's pin
+(
+ov_target_begin curl-fuzz_url
+LIB_ARCHIVE="lib/liboft.a"
+LIB_CFLAGS=""
+build_lib() {
+  oft_require_target_cxx
+  oft_build_cmake -DCURL_USE_LIBPSL=OFF -DCURL_USE_OPENSSL=OFF -DCURL_USE_GNUTLS=OFF -DCURL_USE_MBEDTLS=OFF
+  OFT_HARNESS_CFLAGS="-DHAVE_CONFIG_H -I$BUILDDIR/cmk/lib -I$SRCDIR/lib -I$SRCDIR/include -I/work/targets/curl-fuzz_url"
+  oft_build_harness "fuzz_url.cc"
+  oft_seal_getenv
+  oft_seal_mkstemp
+  oft_seal_getpid
+}
+ov_target_build fuzz_url
+)
+
+# fuzz_doh: curl-fuzzer de8de303d3e0's harness, on curl-fuzz_fnmatch's pin, with a debug libcurl built with UNITTESTS,
+# as curl-fuzzer builds it
+(
+ov_target_begin curl-fuzz_doh
+LIB_ARCHIVE="lib/liboft.a"
+LIB_CFLAGS=""
+build_lib() {
+  oft_require_target_cxx
+  CFLAGS="$CFLAGS -DUNITTESTS"; CXXFLAGS="${CXXFLAGS:-} -DUNITTESTS"
+  oft_build_cmake -DCURL_USE_LIBPSL=OFF -DCURL_USE_OPENSSL=OFF -DCURL_USE_GNUTLS=OFF -DCURL_USE_MBEDTLS=OFF -DENABLE_DEBUG=ON -DCMAKE_BUILD_TYPE=Debug -DUSE_HTTPSRR=ON
+  OFT_HARNESS_CFLAGS="-DHAVE_CONFIG_H -I$BUILDDIR/cmk/lib -I$SRCDIR/lib -I$SRCDIR/include -I/work/targets/curl-fuzz_doh"
+  oft_build_harness "fuzz_doh.cc"
+  oft_seal_getenv
+  oft_seal_mkstemp
+  oft_seal_getpid
+}
+ov_target_build fuzz_doh
+)
+
+# fuzz_netrc: curl-fuzzer de8de303d3e0's harness and the input-file helper it includes, on curl-fuzz_fnmatch's pin,
+# with a debug libcurl built with UNITTESTS, as curl-fuzzer builds it
+(
+ov_target_begin curl-fuzz_netrc
+LIB_ARCHIVE="lib/liboft.a"
+LIB_CFLAGS=""
+build_lib() {
+  oft_require_target_cxx
+  CFLAGS="$CFLAGS -DUNITTESTS"; CXXFLAGS="${CXXFLAGS:-} -DUNITTESTS"
+  oft_build_cmake -DCURL_USE_LIBPSL=OFF -DCURL_USE_OPENSSL=OFF -DCURL_USE_GNUTLS=OFF -DCURL_USE_MBEDTLS=OFF -DENABLE_DEBUG=ON -DCMAKE_BUILD_TYPE=Debug
+  "$CC" $CFLAGS -x c++ -stdlib=libc++ -std=c++17 -DBUILDING_LIBCURL -DDEBUGBUILD -DHAVE_CONFIG_H -I/work/targets/curl-fuzz_netrc -c /work/targets/curl-fuzz_netrc/proto_fuzzer/bounded_anonymous_input_file.cc -o "$BUILDDIR/baif.o" && "$CHOST-ar" r "$BUILDDIR/lib/liboft.a" "$BUILDDIR/baif.o"
+  OFT_HARNESS_CFLAGS="-DHAVE_CONFIG_H -DBUILDING_LIBCURL -DDEBUGBUILD -DUNITTESTS -I$BUILDDIR/cmk/lib -I$SRCDIR/lib -I$SRCDIR/include -I/work/targets/curl-fuzz_netrc"
+  oft_build_harness "fuzz_netrc.cc"
+  oft_seal_getenv
+  oft_seal_mkstemp
+  oft_seal_getpid
+}
+ov_target_build fuzz_netrc
+)
