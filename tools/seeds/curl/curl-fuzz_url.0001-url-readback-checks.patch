@@ -1,0 +1,267 @@
+curl-fuzz_url.0001-url-readback-checks.patch
+Harness reporting.
+
+Read-back checks in fuzz_url.cc of curl-fuzzer de8de303d3e0d54e5ce235fd95d562154970ebf9 (sha256 90791755a9c19a70...).
+After the harness's curl_url_set(), the patch reads the handle back with curl_url_get() and asserts what curl's
+manual at f190aa8ecea7 (docs/libcurl/curl_url_get.md, curl_url_set.md) promises: (a) the URL reads back; (b) the
+path starts with a slash; (c) a port is a decimal number from 0 to 65535; (d) a part read with CURLU_URLDECODE holds
+no byte below 32; (e) a failed set changes no part. (f) is a hypothesis that the manual does not promise: the URL read
+back parses again and reads back the same string. Each check is an assert that aborts. The harness gives curl the
+same calls, with the same arguments, in the same order: the patch adds reads only, and (f) parses into a handle of
+its own.
+
+diff --git a/fuzz_url.cc b/fuzz_url.cc
+index 0f1be3ba211d92ee3ddb87808b02e7e4de6a1fd9..1fe734b488bed78a16f54f3fd5b263c6cde36ede 100644
+--- a/fuzz_url.cc
++++ b/fuzz_url.cc
+@@ -25,6 +25,225 @@
+ #include <string.h>
+ #include <curl/curl.h>
+ 
++/* The read-back checks below are assert()s. Each one must abort when it fails,
++ * in every build, so NDEBUG never turns them off here. */
++#undef NDEBUG
++#include <assert.h>
++
++/*
++ * Read-back checks. After the harness's curl_url_set(), they read the handle
++ * back with curl_url_get() and assert what curl's manual (docs/libcurl/
++ * curl_url_get.md and curl_url_set.md) promises about the answers. Check (f)
++ * is a hypothesis that the manual does not promise.
++ *
++ * The checks only read. The harness gives curl the same calls, with the same
++ * arguments, in the same order as before. The checks add calls of
++ * curl_url_get(), which takes a const handle, and check (f) parses into a
++ * handle of its own, never into the harness's.
++ *
++ * The harness parses with the flag CURLU_GUESS_SCHEME and no other flag. So
++ * curl guesses a scheme for a URL that has none, keeps the parts as the URL
++ * spells them (no CURLU_URLENCODE; the host is kept URL decoded), removes the
++ * dot segments of the path (no CURLU_PATH_AS_IS), refuses a space (no
++ * CURLU_ALLOW_SPACE), wants a host except in a file: URL (no
++ * CURLU_NO_AUTHORITY), and accepts only the schemes it knows (no
++ * CURLU_NON_SUPPORT_SCHEME). The flags of each read are given at each check.
++ *
++ * The checks take it that no allocation fails: the driver of these builds
++ * makes none fail. A check that fails aborts, and the text it prints starts
++ * with the letter of the check. Each check takes the values it judges, so a
++ * test can give it a value that breaks it.
++ */
++
++/* Every part of a URL handle (curl_url_get.md, PARTS). */
++static const CURLUPart all_parts[] = {
++  CURLUPART_URL, CURLUPART_SCHEME, CURLUPART_USER, CURLUPART_PASSWORD,
++  CURLUPART_OPTIONS, CURLUPART_HOST, CURLUPART_ZONEID, CURLUPART_PORT,
++  CURLUPART_PATH, CURLUPART_QUERY, CURLUPART_FRAGMENT
++};
++#define N_PARTS (sizeof(all_parts) / sizeof(all_parts[0]))
++
++/* The parts that CURLU_URLDECODE decodes. curl_url_get.md, CURLU_URLDECODE:
++ * "It does not decode the scheme, the port number or the full URL." */
++static const CURLUPart decoded_parts[] = {
++  CURLUPART_USER, CURLUPART_PASSWORD, CURLUPART_OPTIONS, CURLUPART_HOST,
++  CURLUPART_ZONEID, CURLUPART_PATH, CURLUPART_QUERY, CURLUPART_FRAGMENT
++};
++#define N_DECODED_PARTS (sizeof(decoded_parts) / sizeof(decoded_parts[0]))
++
++/* The flags of the reads of the path in check (b). */
++static const unsigned int path_flags[] = { 0, CURLU_URLDECODE };
++#define N_PATH_FLAGS (sizeof(path_flags) / sizeof(path_flags[0]))
++
++/* The flags of the reads of the port in check (c). */
++static const unsigned int port_flags[] = {
++  0, CURLU_DEFAULT_PORT, CURLU_NO_DEFAULT_PORT
++};
++#define N_PORT_FLAGS (sizeof(port_flags) / sizeof(port_flags[0]))
++
++/* The flags of the reads of check (e): 0, and the two flags that show what a
++ * read with 0 does not (an empty query or fragment, and a guessed scheme). */
++static const unsigned int snapshot_flags[] = {
++  0, CURLU_GET_EMPTY | CURLU_NO_GUESS_SCHEME
++};
++#define N_SNAPSHOT_FLAGS (sizeof(snapshot_flags) / sizeof(snapshot_flags[0]))
++
++/* Every part of a handle, read with each of snapshot_flags. */
++struct url_snapshot {
++  CURLUcode rc[N_SNAPSHOT_FLAGS][N_PARTS];
++  char *part[N_SNAPSHOT_FLAGS][N_PARTS];
++};
++
++static void snapshot_take(const CURLU *uh, struct url_snapshot *s)
++{
++  for(size_t f = 0; f < N_SNAPSHOT_FLAGS; f++)
++    for(size_t i = 0; i < N_PARTS; i++)
++      s->rc[f][i] = curl_url_get(uh, all_parts[i], &s->part[f][i],
++                                 snapshot_flags[f]);
++}
++
++static void snapshot_free(struct url_snapshot *s)
++{
++  for(size_t f = 0; f < N_SNAPSHOT_FLAGS; f++)
++    for(size_t i = 0; i < N_PARTS; i++)
++      curl_free(s->part[f][i]);
++}
++
++/* (a) After a successful set, the full URL reads back (flags 0).
++ * curl_url_get.md, CURLUPART_URL: "When asked to return the full URL,
++ * curl_url_get(3) returns a slightly cleaned up version of the complete URL
++ * using all available parts." */
++static void check_a_url(CURLUcode rc)
++{
++  assert(rc == CURLUE_OK && "(a) the URL reads back");
++}
++
++/* (b) After a successful set, the path reads back and starts with '/'. Read
++ * with flags 0, and with CURLU_URLDECODE; that read may fail, as (d) quotes,
++ * and is then not judged.
++ * curl_url_get.md, CURLUPART_PATH: "The *part* is always at least a slash
++ * ('/') even if no path was supplied in the URL. A URL path always starts with
++ * a slash." */
++static void check_b_path(CURLUcode rc, const char *path, unsigned int flags)
++{
++  if(!(flags & CURLU_URLDECODE))
++    assert(rc == CURLUE_OK && "(b) the path reads back");
++  if(rc == CURLUE_OK)
++    assert(path[0] == '/' && "(b) the path starts with a slash");
++}
++
++/* (c) After a successful set, a port that reads back is a decimal number from
++ * 0 to 65535. Read with flags 0, CURLU_DEFAULT_PORT and CURLU_NO_DEFAULT_PORT;
++ * no port (CURLUE_NO_PORT) is not judged.
++ * curl_url_get.md, CURLUPART_PORT: "That string is guaranteed to hold a valid
++ * port number in ASCII using base 10."
++ * The range is curl_url_set.md's, CURLUPART_PORT: "The given port number is
++ * provided as a string and the decimal number in it must be between 0 and
++ * 65535." */
++static void check_c_port(const char *port)
++{
++  unsigned long value = 0;
++  size_t digits = 0;
++  while(port[digits] >= '0' && port[digits] <= '9') {
++    value = value * 10 + (unsigned long)(port[digits] - '0');
++    if(value > 65536)
++      value = 65536;
++    digits++;
++  }
++  assert(digits && !port[digits] && value <= 65535 &&
++         "(c) the port is a decimal number from 0 to 65535");
++}
++
++/* (d) After a successful set, a part read with CURLU_URLDECODE holds no byte
++ * below 32. Each part that flag decodes is read; a part that is not there, or
++ * a read that fails, is not judged.
++ * curl_url_get.md, CURLU_URLDECODE: "If there are byte values lower than 32 in
++ * the decoded string, the get operation returns an error instead." */
++static void check_d_decoded(const char *decoded)
++{
++  const unsigned char *p = (const unsigned char *)decoded;
++  while(*p >= 32)
++    p++;
++  assert(!*p && "(d) a decoded part holds no byte below 32");
++}
++
++/* (e) After a failed set, every part reads back as it did before the set:
++ * the same answer and the same string, with each of snapshot_flags.
++ * curl_url_set.md, RETURN VALUE: "If this function returns an error, no URL
++ * part is set." */
++static void check_e_unchanged(const struct url_snapshot *before,
++                              const struct url_snapshot *after)
++{
++  for(size_t f = 0; f < N_SNAPSHOT_FLAGS; f++) {
++    for(size_t i = 0; i < N_PARTS; i++) {
++      const char *b = before->part[f][i];
++      const char *a = after->part[f][i];
++      bool same = before->rc[f][i] == after->rc[f][i] &&
++                  (b && a ? !strcmp(b, a) : b == a);
++      assert(same && "(e) a failed set leaves every part as it was");
++    }
++  }
++}
++
++/* (f) A hypothesis that curl's manual does not promise: the URL that reads
++ * back parses again, with the harness's flag CURLU_GUESS_SCHEME, into a
++ * handle of its own, and that handle reads back (flags 0) the same string.
++ * A failure here is a fact about curl, not a fault of the check. */
++static void check_f_reparse(CURLUcode set_rc, CURLUcode get_rc,
++                            const char *first, const char *second)
++{
++  assert(set_rc == CURLUE_OK && "(f) the URL read back parses again");
++  if(set_rc == CURLUE_OK)
++    assert(get_rc == CURLUE_OK && "(f) the URL parsed again reads back");
++  if(set_rc == CURLUE_OK && get_rc == CURLUE_OK)
++    assert(!strcmp(first, second) && "(f) it reads back the same string");
++}
++
++/* Checks (a) to (d) and (f), after a successful set of the handle uh. */
++static void check_after_set(const CURLU *uh)
++{
++  char *url = NULL;
++  CURLUcode rc = curl_url_get(uh, CURLUPART_URL, &url, 0);
++  check_a_url(rc);
++
++  for(size_t f = 0; f < N_PATH_FLAGS; f++) {
++    char *path = NULL;
++    rc = curl_url_get(uh, CURLUPART_PATH, &path, path_flags[f]);
++    check_b_path(rc, path, path_flags[f]);
++    curl_free(path);
++  }
++
++  for(size_t f = 0; f < N_PORT_FLAGS; f++) {
++    char *port = NULL;
++    rc = curl_url_get(uh, CURLUPART_PORT, &port, port_flags[f]);
++    if(rc == CURLUE_OK)
++      check_c_port(port);
++    curl_free(port);
++  }
++
++  for(size_t i = 0; i < N_DECODED_PARTS; i++) {
++    char *decoded = NULL;
++    rc = curl_url_get(uh, decoded_parts[i], &decoded, CURLU_URLDECODE);
++    if(rc == CURLUE_OK)
++      check_d_decoded(decoded);
++    curl_free(decoded);
++  }
++
++  if(url) {
++    CURLU *again = curl_url();
++    char *url_again = NULL;
++    CURLUcode set_rc = curl_url_set(again, CURLUPART_URL, url,
++                                    CURLU_GUESS_SCHEME);
++    CURLUcode get_rc = CURLUE_OK;
++    if(set_rc == CURLUE_OK)
++      get_rc = curl_url_get(again, CURLUPART_URL, &url_again, 0);
++    check_f_reparse(set_rc, get_rc, url, url_again);
++    curl_free(url_again);
++    curl_url_cleanup(again);
++  }
++  curl_free(url);
++}
++
+ /**
+  * Fuzzing entry point. This function is passed a buffer containing a test
+  * case.  This test case should drive the CURL URL API.
+@@ -40,11 +259,23 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
+   if(size) {
+     newp = (char *)malloc(size + 1);
+     if(newp) {
++      struct url_snapshot before;
++      CURLUcode rc;
+       memcpy(newp, data, size);
+       /* make sure it is zero terminated */
+       newp[size] = 0;
+-      curl_url_set(uh, CURLUPART_URL, newp, CURLU_GUESS_SCHEME);
++      snapshot_take(uh, &before);
++      rc = curl_url_set(uh, CURLUPART_URL, newp, CURLU_GUESS_SCHEME);
+       free(newp);
++      if(rc == CURLUE_OK)
++        check_after_set(uh);
++      else {
++        struct url_snapshot after;
++        snapshot_take(uh, &after);
++        check_e_unchanged(&before, &after);
++        snapshot_free(&after);
++      }
++      snapshot_free(&before);
+     }
+   }
+   curl_url_cleanup(uh);

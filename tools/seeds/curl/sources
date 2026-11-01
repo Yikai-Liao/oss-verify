@@ -8,3 +8,4 @@ file	targets/curl-fuzz_fnmatch/fuzz_fnmatch.cc	https://raw.githubusercontent.com
 # Not of the release: fuzz_url from curl-fuzzer de8de303d3e0, on the curl tree of curl-fuzz_bufq's pin
 link	ext/curl-fuzz_url/src	ext/curl-fuzz_bufq/src
 file	targets/curl-fuzz_url/fuzz_url.cc	https://raw.githubusercontent.com/curl/curl-fuzzer/de8de303d3e0d54e5ce235fd95d562154970ebf9/fuzz_url.cc	90791755a9c19a7001aa3fbf1bf2231eb9dd07d502751a2fb78303c6cb7bc426
+patch	targets/curl-fuzz_url	curl-fuzz_url.0001-url-readback-checks.patch
