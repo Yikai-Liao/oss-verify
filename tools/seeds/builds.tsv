@@ -46,7 +46,7 @@ cpuinfo	reproduces	all binaries match the release's
 croaring	reproduces	all binaries match the release's
 crow	reproduces	all binaries match the release's
 cssselect	reproducible	8 binaries; a second build is identical; the release has none to compare
-curl	reproduces	all binaries match the release's
+curl	reproducible	12 binaries; a second build is identical; the 8 of fuzz_bufq and fuzz_fnmatch match the release's, and fuzz_url's 4 have none in the release to compare
 cxxopts	reproduces	all binaries match the release's
 data-encoding	reproducible	48 binaries; a second build is identical; the release has none to compare
 dav1d	reproduces	all binaries match the release's
