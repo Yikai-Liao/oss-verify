@@ -11,7 +11,7 @@ same calls, with the same arguments, in the same order: the patch adds reads onl
 its own.
 
 diff --git a/fuzz_url.cc b/fuzz_url.cc
-index 0f1be3ba211d92ee3ddb87808b02e7e4de6a1fd9..1fe734b488bed78a16f54f3fd5b263c6cde36ede 100644
+index 0f1be3ba211d92ee3ddb87808b02e7e4de6a1fd9..8c550732c31cdb213f93d529d2fb3242ec660022 100644
 --- a/fuzz_url.cc
 +++ b/fuzz_url.cc
 @@ -25,6 +25,225 @@
@@ -42,11 +42,11 @@ index 0f1be3ba211d92ee3ddb87808b02e7e4de6a1fd9..1fe734b488bed78a16f54f3fd5b263c6
 + * CURLU_NO_AUTHORITY), and accepts only the schemes it knows (no
 + * CURLU_NON_SUPPORT_SCHEME). The flags of each read are given at each check.
 + *
-+ * The checks take it that no allocation fails: the driver of these builds
-+ * makes none fail. A check that fails aborts, and the text it prints starts
-+ * with the letter of the check. Each check takes the values it judges, so a
-+ * test can give it a value that breaks it.
-+ */
++ * Premise: no allocation fails. The driver of these builds fails none: it
++ * ignores the input's allocation mask (ossfuzz_adapter.h). A read that failed
++ * for want of memory would abort (a), (b), (e) or (f). A check that fails
++ * aborts, and its text starts with the letter of the check. Each check takes
++ * the values it judges, so a test can give it a value that breaks it. */
 +
 +/* Every part of a URL handle (curl_url_get.md, PARTS). */
 +static const CURLUPart all_parts[] = {
