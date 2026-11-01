@@ -26,3 +26,9 @@ file	targets/curl-fuzz_url_contract/fuzz_url.cc	https://raw.githubusercontent.co
 file	targets/curl-fuzz_url_reparse/fuzz_url.cc	https://raw.githubusercontent.com/curl/curl-fuzzer/de8de303d3e0d54e5ce235fd95d562154970ebf9/fuzz_url.cc	90791755a9c19a7001aa3fbf1bf2231eb9dd07d502751a2fb78303c6cb7bc426
 patch	targets/curl-fuzz_url_contract	curl-fuzz_url_contract.0001-url-contract-checks.patch
 patch	targets/curl-fuzz_url_reparse	curl-fuzz_url_reparse.0001-url-reparse-check.patch
+# Not of the release: curl_fuzzer_proto_file from the curl-fuzzer 39906f3da6d5 tree above, on the curl tree of curl-fuzz_bufq's pin, with libprotobuf-mutator v1.5, the protobuf it builds (v29.3) and the abseil-cpp of that protobuf's submodule
+link	ext/curl-fuzz_proto_file/src	ext/curl-fuzz_bufq/src
+link	targets/curl-fuzz_proto_file	ext/curl-fuzzer-39906f3da6d5
+git	ext/libprotobuf-mutator-1.5	https://github.com/google/libprotobuf-mutator.git	dc4ced337a9fb4047e2dc727268fbac55ca82f73
+git	ext/protobuf-29.3	https://github.com/protocolbuffers/protobuf.git	b407e8416e3893036aee5af9a12bd9b6a0e2b2e6
+git	ext/protobuf-29.3/third_party/abseil-cpp	https://github.com/abseil/abseil-cpp.git	4a2c63365eff8823a5221db86ef490e828306f9d
