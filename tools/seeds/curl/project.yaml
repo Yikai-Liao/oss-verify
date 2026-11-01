@@ -5,4 +5,4 @@ primary_contact: n/a
 homepage: https://curl.haxx.se
 language: c++
 sanitizers: [address, undefined]
-fuzz_targets: [fuzz_bufq, fuzz_fnmatch, fuzz_url, fuzz_doh, fuzz_netrc, fuzz_url_contract, fuzz_url_reparse, curl_fuzzer_proto_file]
+fuzz_targets: [fuzz_bufq, fuzz_fnmatch, fuzz_url, fuzz_doh, fuzz_netrc, fuzz_url_contract, fuzz_url_reparse, curl_fuzzer_proto_file, curl_fuzzer_proto, curl_fuzzer_proto_http, curl_fuzzer_proto_http_deep, curl_fuzzer_proto_http2, curl_fuzzer_proto_socks4, curl_fuzzer_proto_ws, curl_fuzzer_proto_telnet, curl_fuzzer_proto_smtp, curl_fuzzer_proto_imap, curl_fuzzer_proto_pop3, curl_fuzzer_proto_mqtt, curl_fuzzer_proto_dict, curl_fuzzer_proto_ldap, curl_fuzzer_proto_rtsp, curl_fuzzer_proto_ipfs, curl_fuzzer_proto_gopher, curl_fuzzer_proto_api, curl_fuzzer_proto_multi, curl_fuzzer_proto_timing, curl_fuzzer_proto_file_de8de30]

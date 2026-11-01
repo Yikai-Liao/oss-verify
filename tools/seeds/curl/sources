@@ -32,3 +32,45 @@ link	targets/curl-fuzz_proto_file	ext/curl-fuzzer-39906f3da6d5
 git	ext/libprotobuf-mutator-1.5	https://github.com/google/libprotobuf-mutator.git	dc4ced337a9fb4047e2dc727268fbac55ca82f73
 git	ext/protobuf-29.3	https://github.com/protocolbuffers/protobuf.git	b407e8416e3893036aee5af9a12bd9b6a0e2b2e6
 git	ext/protobuf-29.3/third_party/abseil-cpp	https://github.com/abseil/abseil-cpp.git	4a2c63365eff8823a5221db86ef490e828306f9d
+# Not of the release: the structured fuzz targets of the curl-fuzzer de8de303d3e0 tree above (and its curl_fuzzer_proto_file, as curl_fuzzer_proto_file_de8de30), on the curl tree of curl-fuzz_bufq's pin, with the libprotobuf-mutator, protobuf and abseil-cpp above, and the pure-Python protobuf 7.36.2 that curl-fuzzer's uv.lock pins, for its schema_eligibility.py
+link	ext/curl-fuzz_proto/src	ext/curl-fuzz_bufq/src
+link	targets/curl-fuzz_proto	ext/curl-fuzzer-de8de303d3e0
+link	ext/curl-fuzz_proto_http/src	ext/curl-fuzz_bufq/src
+link	targets/curl-fuzz_proto_http	ext/curl-fuzzer-de8de303d3e0
+link	ext/curl-fuzz_proto_http_deep/src	ext/curl-fuzz_bufq/src
+link	targets/curl-fuzz_proto_http_deep	ext/curl-fuzzer-de8de303d3e0
+link	ext/curl-fuzz_proto_http2/src	ext/curl-fuzz_bufq/src
+link	targets/curl-fuzz_proto_http2	ext/curl-fuzzer-de8de303d3e0
+link	ext/curl-fuzz_proto_socks4/src	ext/curl-fuzz_bufq/src
+link	targets/curl-fuzz_proto_socks4	ext/curl-fuzzer-de8de303d3e0
+link	ext/curl-fuzz_proto_ws/src	ext/curl-fuzz_bufq/src
+link	targets/curl-fuzz_proto_ws	ext/curl-fuzzer-de8de303d3e0
+link	ext/curl-fuzz_proto_telnet/src	ext/curl-fuzz_bufq/src
+link	targets/curl-fuzz_proto_telnet	ext/curl-fuzzer-de8de303d3e0
+link	ext/curl-fuzz_proto_smtp/src	ext/curl-fuzz_bufq/src
+link	targets/curl-fuzz_proto_smtp	ext/curl-fuzzer-de8de303d3e0
+link	ext/curl-fuzz_proto_imap/src	ext/curl-fuzz_bufq/src
+link	targets/curl-fuzz_proto_imap	ext/curl-fuzzer-de8de303d3e0
+link	ext/curl-fuzz_proto_pop3/src	ext/curl-fuzz_bufq/src
+link	targets/curl-fuzz_proto_pop3	ext/curl-fuzzer-de8de303d3e0
+link	ext/curl-fuzz_proto_mqtt/src	ext/curl-fuzz_bufq/src
+link	targets/curl-fuzz_proto_mqtt	ext/curl-fuzzer-de8de303d3e0
+link	ext/curl-fuzz_proto_dict/src	ext/curl-fuzz_bufq/src
+link	targets/curl-fuzz_proto_dict	ext/curl-fuzzer-de8de303d3e0
+link	ext/curl-fuzz_proto_ldap/src	ext/curl-fuzz_bufq/src
+link	targets/curl-fuzz_proto_ldap	ext/curl-fuzzer-de8de303d3e0
+link	ext/curl-fuzz_proto_rtsp/src	ext/curl-fuzz_bufq/src
+link	targets/curl-fuzz_proto_rtsp	ext/curl-fuzzer-de8de303d3e0
+link	ext/curl-fuzz_proto_ipfs/src	ext/curl-fuzz_bufq/src
+link	targets/curl-fuzz_proto_ipfs	ext/curl-fuzzer-de8de303d3e0
+link	ext/curl-fuzz_proto_gopher/src	ext/curl-fuzz_bufq/src
+link	targets/curl-fuzz_proto_gopher	ext/curl-fuzzer-de8de303d3e0
+link	ext/curl-fuzz_proto_api/src	ext/curl-fuzz_bufq/src
+link	targets/curl-fuzz_proto_api	ext/curl-fuzzer-de8de303d3e0
+link	ext/curl-fuzz_proto_multi/src	ext/curl-fuzz_bufq/src
+link	targets/curl-fuzz_proto_multi	ext/curl-fuzzer-de8de303d3e0
+link	ext/curl-fuzz_proto_timing/src	ext/curl-fuzz_bufq/src
+link	targets/curl-fuzz_proto_timing	ext/curl-fuzzer-de8de303d3e0
+link	ext/curl-fuzz_proto_file_de8de30/src	ext/curl-fuzz_bufq/src
+link	targets/curl-fuzz_proto_file_de8de30	ext/curl-fuzzer-de8de303d3e0
+archive	ext/python-protobuf-7.36.2	https://files.pythonhosted.org/packages/e4/04/d52c7016b04b6c5108f26691f9d33ec82a9b65d041f1a9c771137693d618/protobuf-7.36.2-py3-none-any.whl	bdb3a345d48db958e6ce1f18e508beb0cc981d64f24088427549c866cd039f1e	0	google/
