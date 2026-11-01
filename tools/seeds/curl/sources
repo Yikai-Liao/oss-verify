@@ -9,7 +9,6 @@ file	targets/curl-fuzz_fnmatch/fuzz_fnmatch.cc	https://raw.githubusercontent.com
 git	ext/curl-fuzzer-4768d8de6f32	https://github.com/curl/curl-fuzzer.git	4768d8de6f3209bb5dd761cd24ff7ccbfbb6b5b8
 git	ext/curl-fuzzer-f41a4eef509b	https://github.com/curl/curl-fuzzer.git	f41a4eef509bdee8ccc1fc90e6fb3404046d256b
 git	ext/curl-fuzzer-de8de303d3e0	https://github.com/curl/curl-fuzzer.git	de8de303d3e0d54e5ce235fd95d562154970ebf9
-git	ext/curl-fuzzer-39906f3da6d5	https://github.com/curl/curl-fuzzer.git	39906f3da6d56ad158bb6b44f0139cbb68888faf
 # Not of the release: fuzz_url, fuzz_doh and fuzz_netrc from curl-fuzzer de8de303d3e0, on the curl tree of curl-fuzz_bufq's pin
 link	ext/curl-fuzz_url/src	ext/curl-fuzz_bufq/src
 link	ext/curl-fuzz_doh/src	ext/curl-fuzz_bufq/src
@@ -26,9 +25,10 @@ file	targets/curl-fuzz_url_contract/fuzz_url.cc	https://raw.githubusercontent.co
 file	targets/curl-fuzz_url_reparse/fuzz_url.cc	https://raw.githubusercontent.com/curl/curl-fuzzer/de8de303d3e0d54e5ce235fd95d562154970ebf9/fuzz_url.cc	90791755a9c19a7001aa3fbf1bf2231eb9dd07d502751a2fb78303c6cb7bc426
 patch	targets/curl-fuzz_url_contract	curl-fuzz_url_contract.0001-url-contract-checks.patch
 patch	targets/curl-fuzz_url_reparse	curl-fuzz_url_reparse.0001-url-reparse-check.patch
-# Not of the release: curl_fuzzer_proto_file from the curl-fuzzer 39906f3da6d5 tree above, on the curl tree of curl-fuzz_bufq's pin, with libprotobuf-mutator v1.5, the protobuf it builds (v29.3) and the abseil-cpp of that protobuf's submodule
+# Not of the release: curl_fuzzer_proto_file from the curl-fuzzer de8de303d3e0 tree above, on the curl tree of curl-fuzz_bufq's pin, with libprotobuf-mutator v1.5, the protobuf it builds (v29.3), the abseil-cpp of that protobuf's submodule, and the pure-Python protobuf 7.36.2 that curl-fuzzer's uv.lock pins, for its schema_eligibility.py
 link	ext/curl-fuzz_proto_file/src	ext/curl-fuzz_bufq/src
-link	targets/curl-fuzz_proto_file	ext/curl-fuzzer-39906f3da6d5
+link	targets/curl-fuzz_proto_file	ext/curl-fuzzer-de8de303d3e0
 git	ext/libprotobuf-mutator-1.5	https://github.com/google/libprotobuf-mutator.git	dc4ced337a9fb4047e2dc727268fbac55ca82f73
 git	ext/protobuf-29.3	https://github.com/protocolbuffers/protobuf.git	b407e8416e3893036aee5af9a12bd9b6a0e2b2e6
 git	ext/protobuf-29.3/third_party/abseil-cpp	https://github.com/abseil/abseil-cpp.git	4a2c63365eff8823a5221db86ef490e828306f9d
+archive	ext/python-protobuf-7.36.2	https://files.pythonhosted.org/packages/e4/04/d52c7016b04b6c5108f26691f9d33ec82a9b65d041f1a9c771137693d618/protobuf-7.36.2-py3-none-any.whl	bdb3a345d48db958e6ce1f18e508beb0cc981d64f24088427549c866cd039f1e	0	google/

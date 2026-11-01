@@ -201,34 +201,45 @@ build_lib() {
 ov_target_build fuzz_url_reparse
 )
 
-# curl_fuzzer_proto_file: curl-fuzzer 39906f3da6d5's structured fuzz target of file:// transfers
-# (curl_add_proto_fuzzer(curl_fuzzer_proto_file), profile kFastFile), on curl-fuzz_fnmatch's pin, as curl-fuzzer builds
-# it without a TLS backend (its MemorySanitizer build): a debug libcurl built with UNITTESTS, the zstd and nghttp2
-# contract shims, and libprotobuf-mutator v1.5 with the protobuf v29.3 and abseil that v1.5 builds. libcurl links the
-# sysroot's zlib, brotli, zstd and nghttp2, as the targets above do; curl-fuzzer builds its own, and libidn2 and
-# OpenLDAP, which the toolchain image does not have. protoc runs on the build machine, so it is built for the host
-# from the same protobuf, as curl-fuzzer's MemorySanitizer build does.
-(
-ov_target_begin curl-fuzz_proto_file
-LIB_ARCHIVE="lib/liboft.a"
-LIB_CFLAGS=""
-build_lib() {
-  oft_require_target_cxx
-  F=/work/targets/curl-fuzz_proto_file
+# curl_fuzzer_proto_file: curl-fuzzer de8de303d3e0's structured fuzz target of file:// transfers
+# (curl_add_proto_fuzzer(curl_fuzzer_proto_file PROFILE fast_file), its CMakeLists.txt:2099), on curl-fuzz_fnmatch's
+# pin, as curl-fuzzer builds it without a TLS backend (its MemorySanitizer build): a debug libcurl built with UNITTESTS,
+# the zstd and nghttp2 contract shims and their wraps, and libprotobuf-mutator v1.5 with the protobuf v29.3 and abseil
+# that v1.5 builds. libcurl links the sysroot's zlib, brotli, zstd and nghttp2, as the targets above do; curl-fuzzer
+# builds its own, and libidn2 and OpenLDAP, which the toolchain image does not have. protoc runs on the build machine,
+# so it is built for the host from the same protobuf, as curl-fuzzer's MemorySanitizer build does. pf_de8de30_lib
+# follows de8de303d3e0's CMakeLists.txt:
+# - libcurl gets its options that apply without TLS, CURL_USE_GSASL=OFF among them (CMakeLists.txt:512-514).
+# - the message code is made as CMakeLists.txt:1652-1789 makes it: the annotated descriptor of schemas/curl_fuzzer.proto;
+#   schema_eligibility.py for the profile `compatibility`, which also writes the runtime schema and the option manifest,
+#   and for the target's own profile; protoc for the runtime schema and the profile's schema. schema_eligibility.py
+#   needs Python's protobuf, which the image does not have: sources lays out the pure-Python wheel of protobuf 7.36.2,
+#   the version curl-fuzzer's uv.lock pins.
+# - the runtime is the object list of curl_fuzzer_proto_runtime (CMakeLists.txt:1837-1876, less its TLS sources, which
+#   it compiles only with an OpenSSL target) and curl_fuzzer_proto_runner (:1908-1910); the target adds its profile's
+#   message code (:1764) and its same-named entry point (:2006-2011). Every object is compiled with COMMON_FLAGS only
+#   (:816); de8de303d3e0 gives no target a FUZZ_PROTOCOLS_* definition.
+# pf_de8de30_lib <target directory> <profile> <entry point>, from build_lib.
+pf_de8de30_lib() {
+  F=/work/targets/$1
+  pf_slug=$2
+  pf_entry=$3
   PB=/work/ext/protobuf-29.3
   LPM=/work/ext/libprotobuf-mutator-1.5
+  PYPB=/work/ext/python-protobuf-7.36.2
   P=$BUILDDIR/proto
+  G=$P/gen/schema_eligibility
   # libcurl, with curl-fuzzer's options that apply without TLS, and UNITTESTS in its own compiles only
   CFLAGS="$CFLAGS -DUNITTESTS"
   oft_build_cmake -DCURL_USE_LIBPSL=OFF -DCURL_USE_OPENSSL=OFF -DCURL_USE_GNUTLS=OFF -DCURL_USE_MBEDTLS=OFF \
     -DENABLE_DEBUG=ON -DCMAKE_BUILD_TYPE=Debug -DCURL_DISABLE_INSTALL=ON -DCURL_HIDDEN_SYMBOLS=OFF \
     -DBUILD_CURL_EXE=OFF -DBUILD_LIBCURL_DOCS=OFF -DBUILD_MISC_DOCS=OFF -DENABLE_CURL_MANUAL=OFF \
     -DCURL_CA_BUNDLE=none -DCURL_CA_PATH=none -DCURL_DISABLE_TELNET=OFF -DCURL_DISABLE_FTP=OFF \
-    -DCURL_DISABLE_TFTP=OFF -DCURL_DISABLE_GOPHER=OFF -DCURL_ENABLE_SMB=OFF -DCURL_ENABLE_NTLM=OFF \
+    -DCURL_DISABLE_TFTP=OFF -DCURL_DISABLE_GOPHER=OFF -DCURL_USE_GSASL=OFF \
     -DUSE_HTTPSRR=ON -DCURL_BROTLI=ON
   pf_kept=""; for pf_f in $CFLAGS; do [ "$pf_f" = -DUNITTESTS ] || pf_kept="$pf_kept $pf_f"; done; CFLAGS=${pf_kept# }
   rm -rf "$P"
-  mkdir -p "$P/gen/schemas" "$P/obj" "$P/lpm/include/libprotobuf-mutator" "$P/lpm/lib"
+  mkdir -p "$G/runtime" "$P/gen/schemas" "$P/obj" "$P/lpm/include/libprotobuf-mutator" "$P/lpm/lib"
   # protoc for the host, with the host's compiler and no flags (curl-fuzzer's host protoc build, less its install)
   env -u CC -u CXX -u CFLAGS -u CXXFLAGS cmake -S "$PB" -B "$P/host" -G Ninja -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_FLAGS= -DCMAKE_CXX_FLAGS= \
@@ -260,41 +271,64 @@ build_lib() {
     mkdir -p "$P/lpm/include/libprotobuf-mutator/${pf_h%/*}"
     cp "$LPM/$pf_h" "$P/lpm/include/libprotobuf-mutator/$pf_h"
   done
-  # the schema checked against this curl.h, its option manifest, and its message code
-  python3 "$F/src/curl_fuzzer_tools/generate_option_manifest.py" --curl-header "$SRCDIR/include/curl/curl.h" \
-    --proto-schema "$F/schemas/curl_fuzzer.proto" --proto-out "$P/gen/schemas/curl_fuzzer.proto" \
-    --manifest-out "$P/gen/curl_fuzzer_option_manifest.inc"
-  "$P/host/protoc" --cpp_out="$P/gen" --proto_path="$P/gen/schemas" "$P/gen/schemas/curl_fuzzer.proto"
-  # the structured runtime and runner (their sources without a TLS backend), the message code and the contract shims,
-  # compiled as curl-fuzzer compiles them, in parallel; archived with libcurl, in this order, as the release links one
-  # archive that holds the library and the harness
+  # the message code (CMakeLists.txt:1652-1789): the annotated descriptor, the profiles checked against this curl.h,
+  # the runtime schema's code and the profile's
+  "$P/host/protoc" --proto_path="$F/schemas" --proto_path="$PB/src" --include_imports --include_source_info \
+    --descriptor_set_out="$G/annotated.desc" "$F/schemas/curl_fuzzer.proto"
+  for pf_p in compatibility $pf_slug; do
+    pf_r=$G/profiles/$pf_p
+    [ ! -e "$pf_r/$pf_p.desc" ] || continue
+    mkdir -p "$pf_r"
+    pf_global=""
+    [ "$pf_p" != compatibility ] || pf_global="--authoring-descriptor-out $G/authoring.desc \
+      --authoring-schema-out-dir $P/gen/schemas --runtime-descriptor-out $G/runtime/runtime.desc \
+      --runtime-schema-out-dir $G/runtime --native-manifest-out $P/gen/curl_fuzzer_option_manifest.inc"
+    # shellcheck disable=SC2086 # the global outputs, made by the profile compatibility only
+    PYTHONPATH="$F/src:$PYPB" python3 "$F/src/curl_fuzzer_tools/schema_eligibility.py" \
+      --descriptor-set "$G/annotated.desc" --curl-header "$SRCDIR/include/curl/curl.h" \
+      --target-profile-header "$F/proto_fuzzer/target_profile.h" --profile "$pf_p" \
+      --projected-descriptor-out "$pf_r/$pf_p.desc" --report-out "$pf_r/$pf_p.json" --schema-out-dir "$pf_r" \
+      --adapter-out "$pf_r/generated/$pf_p/${pf_p}_traits.h" $pf_global
+  done
+  pf_prof=$G/profiles/$pf_slug
+  "$P/host/protoc" --descriptor_set_in="$pf_prof/$pf_slug.desc" --cpp_out="$pf_prof" \
+    "generated/$pf_slug/$pf_slug.proto"
+  "$P/host/protoc" --descriptor_set_in="$G/runtime/runtime.desc" --cpp_out="$P/gen" curl_fuzzer.proto
+  # the structured runtime and runner (their sources without a TLS backend), the runtime message code, the profile's
+  # message code and the contract shims, compiled as curl-fuzzer compiles them, in parallel; archived with libcurl, in
+  # this order, as the release links one archive that holds the library and the harness
   pf_inc="-I$SRCDIR/include -I$P/gen -I$F -I$P/lpm/include -I$P/lpm/include/libprotobuf-mutator -I$P/pb/include"
   pf_objs=""; pf_pids=""
-  for pf_s in proto_fuzzer/allocation_fault_injection proto_fuzzer/api_lifecycle proto_fuzzer/dict_mock_server \
-      proto_fuzzer/fuzzer_main proto_fuzzer/ftp_mock_server proto_fuzzer/h2_cleartext_mock_server \
-      proto_fuzzer/h2_plan proto_fuzzer/happy_eyeballs_mock_server proto_fuzzer/h2_runtime \
-      proto_fuzzer/imap_mock_server proto_fuzzer/option_apply proto_fuzzer/option_model \
-      proto_fuzzer/pingpong_mock_server proto_fuzzer/pop3_mock_server proto_fuzzer/request_data \
+  for pf_s in proto_fuzzer/allocation_fault_injection proto_fuzzer/api_lifecycle proto_fuzzer/curl_global_lifecycle \
+      proto_fuzzer/dict_mock_server proto_fuzzer/fuzzer_main proto_fuzzer/ftp_mock_server \
+      proto_fuzzer/gopher_mock_server proto_fuzzer/h2_cleartext_mock_server proto_fuzzer/h2_plan \
+      proto_fuzzer/happy_eyeballs_mock_server proto_fuzzer/h2_runtime proto_fuzzer/http_transport_mock_server \
+      proto_fuzzer/imap_mock_server proto_fuzzer/ipfs_url proto_fuzzer/ldap_mock_server proto_fuzzer/option_apply \
+      proto_fuzzer/option_model proto_fuzzer/pingpong_mock_server proto_fuzzer/pop3_mock_server \
+      proto_fuzzer/proxy_option_mock_server proto_fuzzer/request_data proto_fuzzer/rtsp_mock_server \
       proto_fuzzer/socks4_mock_server proto_fuzzer/smtp_mock_server proto_fuzzer/mock_server \
       proto_fuzzer/mock_server_base proto_fuzzer/mqtt_mock_server proto_fuzzer/multi_socket_driver \
       proto_fuzzer/multi_transfer_runner proto_fuzzer/transfer_session proto_fuzzer/target_policy \
       proto_fuzzer/telnet_mock_server proto_fuzzer/telnet_scenario proto_fuzzer/tftp_mock_server \
       proto_fuzzer/websocket_mock_server proto_fuzzer/ws_frame gen/curl_fuzzer.pb \
-      proto_fuzzer/bounded_anonymous_input_file proto_fuzzer/scenario_runner \
+      proto_fuzzer/bounded_anonymous_input_file proto_fuzzer/scenario_runner "profile/$pf_slug.pb" \
       zstd_contract_shim nghttp2_contract_shim; do
-    case "$pf_s" in gen/*) pf_src=$P/$pf_s.cc ;; *) pf_src=$F/$pf_s.cc ;; esac
-    case "$pf_s" in *_contract_shim) pf_def="" ;; *) pf_def="-DFUZZ_PROTOCOLS_HTTP" ;; esac
+    case "$pf_s" in
+      gen/*) pf_src=$P/$pf_s.cc; pf_i=$pf_inc ;;
+      profile/*) pf_src=$pf_prof/generated/$pf_slug/$pf_slug.pb.cc; pf_i="-I$pf_prof -I$P/pb/include" ;;
+      *) pf_src=$F/$pf_s.cc; pf_i=$pf_inc ;;
+    esac
     pf_o=$P/obj/${pf_s##*/}.o
-    "$CXX" $CFLAGS -g -DCURL_DISABLE_DEPRECATION $pf_def $pf_inc -c "$pf_src" -o "$pf_o" &
+    "$CXX" $CFLAGS -g -DCURL_DISABLE_DEPRECATION $pf_i -c "$pf_src" -o "$pf_o" &
     pf_pids="$pf_pids $!"; pf_objs="$pf_objs $pf_o"
   done
   for pf_p in $pf_pids; do wait "$pf_p"; done
   # shellcheck disable=SC2086 # the object list
   "$CHOST-ar" r "$BUILDDIR/lib/liboft.a" $pf_objs
-  # the same-named entry point is the harness
+  # the same-named entry point is the harness; it reads its profile's traits
   OFT_CXX_STD=-std=gnu++17
-  OFT_HARNESS_CFLAGS="-DCURL_DISABLE_DEPRECATION -DFUZZ_PROTOCOLS_HTTP $pf_inc"
-  oft_build_harness "fuzzer_entrypoints/curl_fuzzer_proto_file.cc"
+  OFT_HARNESS_CFLAGS="-DCURL_DISABLE_DEPRECATION $pf_inc -I$pf_prof"
+  oft_build_harness "$pf_entry"
   # the link: curl-fuzzer's response file (every archive of libprotobuf-mutator and its protobuf, sorted, in one
   # group), the shims' wraps (cmake/ZstdContractApis.cmake, cmake/Nghttp2ContractApis.cmake), and the sysroot's
   # libraries less its protobuf 3.21, so that no object of that other protobuf can be linked
@@ -321,6 +355,15 @@ build_lib() {
   oft_seal_getenv
   oft_seal_mkstemp
   oft_seal_getpid
+}
+
+(
+ov_target_begin curl-fuzz_proto_file
+LIB_ARCHIVE="lib/liboft.a"
+LIB_CFLAGS=""
+build_lib() {
+  oft_require_target_cxx
+  pf_de8de30_lib curl-fuzz_proto_file fast_file fuzzer_entrypoints/curl_fuzzer_proto_file.cc
 }
 ov_target_build curl_fuzzer_proto_file
 )
