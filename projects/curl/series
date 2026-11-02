@@ -1,0 +1,3 @@
+curl-fuzz_url_contract.0001-url-contract-checks.patch
+curl-fuzz_url_reparse.0001-url-reparse-check.patch
+curl-fuzz_bufq.0001-no-syscalls.patch
