@@ -25,6 +25,9 @@ file	targets/curl-fuzz_url_contract/fuzz_url.cc	https://raw.githubusercontent.co
 file	targets/curl-fuzz_url_reparse/fuzz_url.cc	https://raw.githubusercontent.com/curl/curl-fuzzer/de8de303d3e0d54e5ce235fd95d562154970ebf9/fuzz_url.cc	90791755a9c19a7001aa3fbf1bf2231eb9dd07d502751a2fb78303c6cb7bc426
 patch	targets/curl-fuzz_url_contract	curl-fuzz_url_contract.0001-url-contract-checks.patch
 patch	targets/curl-fuzz_url_reparse	curl-fuzz_url_reparse.0001-url-reparse-check.patch
+# Not of the release: fuzz_bufq's harness as the OSS Verify proofs build it (oss-verify-proofs-internal PR #537), then the two fixes its may-fail statements need
+patch	targets/curl-fuzz_bufq	curl-fuzz_bufq.0001-no-syscalls.patch
+patch	targets/curl-fuzz_bufq	curl-fuzz_bufq.0002-mayfail-harness-fixes.patch
 # Not of the release: curl_fuzzer_proto_file from the curl-fuzzer de8de303d3e0 tree above, on the curl tree of curl-fuzz_bufq's pin, with libprotobuf-mutator v1.5, the protobuf it builds (v29.3), the abseil-cpp of that protobuf's submodule, and the pure-Python protobuf 7.36.2 that curl-fuzzer's uv.lock pins, for its schema_eligibility.py
 link	ext/curl-fuzz_proto_file/src	ext/curl-fuzz_bufq/src
 link	targets/curl-fuzz_proto_file	ext/curl-fuzzer-de8de303d3e0
