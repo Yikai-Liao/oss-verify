@@ -1,5 +1,10 @@
 #!/bin/sh -e
-# Generated from the build recipe of the oss-fuzz-theorems 2026.10 release; do not edit.
+# Copyright 2026 Theorem Labs, PBC
+# SPDX-License-Identifier: Apache-2.0
+# Modified 2026 by Theorem Labs, PBC: the fuzz targets after fuzz_fnmatch, which are not of the release, and fuzz_bufq's
+# harness patch (sources).
+#
+# Generated from the build recipe of the oss-fuzz-theorems 2026.10 release.
 #
 # Builds the fuzz targets of curl into $OUT, each from the pin of the release's target for it.
 # compile runs build.sh with bash; the release ran each target's build with sh -e, and so does this.
